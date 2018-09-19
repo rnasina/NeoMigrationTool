@@ -35,7 +35,7 @@ public class NeodbManager implements AutoCloseable {
         {
         	Session session = driver.session();
         	String fullQuery = "UNWIND {rows} as batchrow ";
-        	fullQuery += "MERGE (n:"+node+") SET n+= batchrow";
+        	fullQuery += "CREATE (n:"+node+") SET n+= batchrow";
         	session.run(fullQuery, Collections.singletonMap("rows", params));
         	System.out.println("+1000");
         } finally {
