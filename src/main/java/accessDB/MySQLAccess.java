@@ -5,8 +5,10 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Random;
-import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
 
 public class MySQLAccess {
 	
@@ -16,10 +18,10 @@ public class MySQLAccess {
     	Statement statement = null;
     	ResultSet resultSet = null, colResultSet = null;
     	MySQLAccess access = new MySQLAccess();
-        try (NeodbManager neo = new NeodbManager("bolt://localhost:7687", "neo4j", "password")) {        	
+        try (NeodbManager neo = new NeodbManager("bolt://localhost:7687", "username", "password")) {        	
             // Setup the connection with the DB
-            connect = DriverManager.getConnection("jdbc:mysql://localhost:3306?user=root&password=admin&useSSL=false&allowPublicKeyRetrieval=true");
-            String databaseName = "foods";
+            connect = DriverManager.getConnection("jdbc:mysql://localhost:3306?user=username&password=admin&useSSL=false&allowPublicKeyRetrieval=true");
+            String databaseName = "dbname";
             String tableNm = "";
             statement = connect.createStatement();
             
@@ -44,43 +46,34 @@ public class MySQLAccess {
     
     private void writeResultSet(ResultSet resultSet, String tableNm) throws SQLException {
         // ResultSet is initially before the first data set
-    	NeodbManager neo = new NeodbManager("bolt://localhost:7687", "neo4j", "password");
-    	StringBuffer msb = new StringBuffer();
+    	NeodbManager neo = new NeodbManager("bolt://localhost:7687", "username", "password");
+    	List<Map<String, String>> params = null;
     	int count = 0;String node = "";
         while (resultSet.next()) {
-        	node = nameOfNode();
-        	StringBuffer sb = new StringBuffer();
-        	sb.append("CREATE ("+node+":"+tableNm+" {");
-			for  (int i = 1; i<= resultSet.getMetaData().getColumnCount(); i++){
-				JSONObject j = new JSONObject();
-				j.put(resultSet.getMetaData().getColumnName(i), resultSet.getString(resultSet.getMetaData().getColumnName(i)));
-				if(!j.isEmpty())
-					sb.append(resultSet.getMetaData().getColumnName(i)+":\""+j.getString(resultSet.getMetaData().getColumnName(i)).replaceAll("\"", "\\\\\"")+"\",");
-	        }
-			sb.deleteCharAt(sb.length()-1);
-			sb.append("}) ");  
-			msb.append(sb.toString());
+        	node = "n1";
+        	params = params == null ? new ArrayList<>() : params;
+        	
+        	Map<String, String> currparams = new Hashtable<String, String>();
+        	
+        	for  (int i = 1; i<= resultSet.getMetaData().getColumnCount(); i++){
+        		String key = resultSet.getMetaData().getColumnName(i);
+        		String value = resultSet.getString(key);
+				currparams.put(key, value == null ?	"":value);
+			}
+        	
+        	params.add(currparams);
+        	
 			count++;
-			if(count%1000==0) { neo.createNodes(msb.toString(), node); msb = new StringBuffer(); }
-			
+			if(count%1000==0) { 
+				neo.createNodes(tableNm, params); 
+				params = null;
+			}
         }      
-        if(count<1000 && count > 1) { neo.createNodes(msb.toString(), node); msb = new StringBuffer(); }
-        
-    }
-    
-    public String nameOfNode() {
-    	  
-        int leftLimit = 97; // letter 'a'
-        int rightLimit = 122; // letter 'z'
-        int targetStringLength = 10;
-        Random random = new Random();
-        StringBuilder buffer = new StringBuilder(targetStringLength);
-        for (int i = 0; i < targetStringLength; i++) {
-            int randomLimitedInt = leftLimit + (int) 
-              (random.nextFloat() * (rightLimit - leftLimit + 1));
-            buffer.append((char) randomLimitedInt);
+        if(count<1000 && count > 1) { 
+        	neo.createNodes(tableNm, params); 
+        	params = null; 
         }
-        return buffer.toString();
+        
     }
 
     // You need to close the resultSet

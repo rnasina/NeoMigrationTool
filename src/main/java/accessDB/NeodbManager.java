@@ -1,5 +1,8 @@
 package accessDB;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Collections;
 import org.neo4j.driver.v1.AuthTokens;
 import org.neo4j.driver.v1.Driver;
 import org.neo4j.driver.v1.GraphDatabase;
@@ -16,23 +19,25 @@ public class NeodbManager implements AutoCloseable {
 		driver = GraphDatabase.driver( uri, AuthTokens.basic( user, password ) );
     }
 	
-	void createNodes (String cyp, String node) {
+	void createNodes (String node, List<Map<String, String>>params) {
 		
     	try 
         { 
-    		FeedNeo(driver, cyp, node);
+    		FeedNeo(driver, node, params);
         } finally {
         	
         }
     }
 	
-	public void FeedNeo(Driver driver, final String message, final String node )
+	public void FeedNeo(Driver driver, final String node, List<Map<String, String>> params )
     {
         try 
         {
         	Session session = driver.session();
-            String greeting = session.writeTransaction(tx -> tx.run(message+" RETURN "+node+".id + ', from node ' + id("+node+")").single().get( 0 ).asString());
-            System.out.println( greeting );
+        	String fullQuery = "UNWIND {rows} as batchrow ";
+        	fullQuery += "MERGE (n:"+node+") SET n+= batchrow";
+        	session.run(fullQuery, Collections.singletonMap("rows", params));
+        	System.out.println("+1000");
         } finally {
         	
         }
